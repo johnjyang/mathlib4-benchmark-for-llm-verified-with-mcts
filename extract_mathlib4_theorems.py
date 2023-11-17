@@ -1,6 +1,9 @@
 from lean_dojo import LeanGitRepo, trace
-from tqdm import tqdm
+import tqdm
 import jsonlines
+import os
+
+os.environ["VERBOSE"] = "1"
 
 
 def extract_mathlib4_theorems(commit_hash: str) -> None:
@@ -11,7 +14,7 @@ def extract_mathlib4_theorems(commit_hash: str) -> None:
         "https://github.com/leanprover-community/mathlib4",
         commit_hash,
     )
-    traced_mathlib4_repo = trace(mathlib4_repo)
+    traced_mathlib4_repo = trace(mathlib4_repo, "traced_mathlib4")
 
     print("Extracting theorems...")
     extracted_theorems = []
