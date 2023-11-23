@@ -6,7 +6,7 @@ import os
 os.environ["VERBOSE"] = "1"
 
 
-def extract_mathlib4_theorems(commit_hash: str) -> None:
+def trace_mathlib4_theorems(commit_hash: str) -> None:
     """
     Extract mathlib4 theorems with a tactic proof and save to file.
     """
@@ -16,7 +16,7 @@ def extract_mathlib4_theorems(commit_hash: str) -> None:
     )
     traced_mathlib4_repo = trace(mathlib4_repo, "traced_mathlib4")
 
-    print("Extracting theorems...")
+    print("Outputting traced theorems...")
     extracted_theorems = []
     for thm in tqdm.tqdm(traced_mathlib4_repo.get_traced_theorems()):
         if not thm.has_tactic_proof():
@@ -27,7 +27,7 @@ def extract_mathlib4_theorems(commit_hash: str) -> None:
         theorem = thm.get_theorem_statement()
         extracted_theorems.append((theorem, proof))
 
-    print(extract_mathlib4_theorems[0])
+    print(trace_mathlib4_theorems[0])
     print(f"{len(extracted_theorems)=}")
 
     print("Saving theorems to file...")
@@ -37,4 +37,4 @@ def extract_mathlib4_theorems(commit_hash: str) -> None:
 
 
 if __name__ == "__main__":
-    extract_mathlib4_theorems("19210bcc58535416f6009c53089eeab4ef608b4d")
+    trace_mathlib4_theorems("84c26b211afbd8ae411c6f7cb9458f5a6e44ca0a")
