@@ -7,7 +7,7 @@ import re
 from tqdm import tqdm
 
 
-def read_jsonl_file(file_name: str):
+def read_jsonl_file(file_name: str) -> List:
     with jsonlines.open(file_name) as reader:
         return list(reader)
 
@@ -79,10 +79,36 @@ class ParsedDeclaration:
         )
 
 
+def remove_nested_declarations(
+    all_pos: List[List[int]], parsed_declarations: List[ParsedDeclaration]
+) -> List[ParsedDeclaration]:
+    no_nested_declarations = []
+    for parsed_declaration in parsed_declarations:
+        parsed_pos = [
+            int(p)
+            for p in parsed_declaration.declarationSourceLink.split("#L")[-1].split(
+                "-L"
+            )
+        ]
+        nested = False
+        for pos in all_pos:
+            if (
+                parsed_pos != pos
+                and parsed_pos[0] >= pos[0]
+                and parsed_pos[1] <= pos[1]
+            ):
+                nested = True
+                break
+        if not nested:
+            no_nested_declarations.append(parsed_declaration)
+    return no_nested_declarations
+
+
 def parse_module_declarations(
     module: Module, module_path: str, mathlib_source_code: str
-):
+) -> List[ParsedDeclaration]:
     parsed_declarations = []
+    all_pos = []
     for declaration in module.declarations:
         module_docstring = re.findall(r"/-!(.*?)-/", mathlib_source_code, re.DOTALL)
         if module_docstring:
@@ -94,33 +120,34 @@ def parse_module_declarations(
         else:
             source_link = declaration.sourceLink
         pos = [int(p) for p in declaration.sourceLink.split("#L")[-1].split("-L")]
+        all_pos.append(pos)
         source_code_lines = mathlib_source_code.split("\n")
         if pos[0] == pos[1]:
-            declaration_code = source_code_lines[pos[0] - 1]
+            declaration_code = "\n".join(source_code_lines[pos[0] - 1])
         else:
             declaration_code = "\n".join(source_code_lines[pos[0] - 1 : pos[1]])
-        declaration_code = declaration_code.strip()
         commit_hash = declaration.sourceLink.split("blob/")[1].split("/")[0]
         parsed_declaration = ParsedDeclaration.from_dict(
             {
-                "modulePath": module_path,
+                "modulePath": module_path.strip(),
                 "moduleImports": module.imports,
-                "moduleDocstring": module_docstring,
-                "declarationName": declaration.name,
-                "declarationKind": declaration.kind,
+                "moduleDocstring": module_docstring.strip(),
+                "declarationName": declaration.name.strip(),
+                "declarationKind": declaration.kind.strip(),
                 "declarationDocstring": declaration.doc.strip(),
-                "declarationCode": declaration_code,
-                "declarationSourceLink": source_link,
-                "commitHash": commit_hash,
+                "declarationCode": declaration_code.strip(),
+                "declarationSourceLink": source_link.strip(),
+                "commitHash": commit_hash.strip(),
             }
         )
         parsed_declarations.append(parsed_declaration)
+    parsed_declarations = remove_nested_declarations(all_pos, parsed_declarations)
     return parsed_declarations
 
 
 def parse_declarations_from_doc_directory(
     source_code_path: str, doc_directory: str, output_file: str
-):
+) -> None:
     print("Parsing source code...")
     if not os.path.exists("data/mathlib4_source_code.jsonl"):
         os.mkdir("data")
@@ -172,3 +199,5 @@ if __name__ == "__main__":
         doc_directory="mathlib4/.lake/build/doc/Mathlib",
         output_file="data/Mathlib_declarations.jsonl",
     )
+    parsed_declarations = read_jsonl_file("data/Mathlib_declarations.jsonl")
+    assert len(parsed_declarations) == 166240
