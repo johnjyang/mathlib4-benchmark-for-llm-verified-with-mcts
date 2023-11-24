@@ -3,6 +3,8 @@ from pathlib import Path
 import os
 from dataclasses import dataclass
 from typing import List
+import re
+from tqdm import tqdm
 
 
 def read_jsonl_file(file_name: str):
@@ -82,6 +84,15 @@ def parse_module_declarations(
 ):
     parsed_declarations = []
     for declaration in module.declarations:
+        module_docstring = re.findall(r"/-!(.*?)-/", mathlib_source_code, re.DOTALL)
+        if module_docstring:
+            module_docstring = module_docstring[0].strip()
+        else:
+            module_docstring = ""
+        if "//" in declaration.sourceLink:
+            source_link = declaration.sourceLink.replace("//", "/")
+        else:
+            source_link = declaration.sourceLink
         pos = [int(p) for p in declaration.sourceLink.split("#L")[-1].split("-L")]
         source_code_lines = mathlib_source_code.split("\n")
         if pos[0] == pos[1]:
@@ -94,12 +105,12 @@ def parse_module_declarations(
             {
                 "modulePath": module_path,
                 "moduleImports": module.imports,
-                "moduleDocstring": "",
+                "moduleDocstring": module_docstring,
                 "declarationName": declaration.name,
                 "declarationKind": declaration.kind,
                 "declarationDocstring": declaration.doc.strip(),
                 "declarationCode": declaration_code,
-                "declarationSourceLink": declaration.sourceLink,
+                "declarationSourceLink": source_link,
                 "commitHash": commit_hash,
             }
         )
@@ -130,7 +141,7 @@ def parse_declarations_from_doc_directory(
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     with jsonlines.open(output_file, mode="w") as writer:
         for root, dirs, files in os.walk(doc_directory):
-            for file in files:
+            for file in tqdm(files):
                 file_path = os.path.join(root, file)
                 if not file_path.endswith(".jsonl"):
                     continue
